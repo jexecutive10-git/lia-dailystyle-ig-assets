@@ -17,6 +17,19 @@ jobs:
             [ -f "$archive" ] || continue
             base64 -d "$archive" | tar -xf -
           done
+          # Split archives: only assemble when the sibling .done file is present
+          # and the part count matches. Parts are encoded/<name>.tar.b64.part00+
+          for done in encoded/*.tar.b64.done; do
+            [ -f "$done" ] || continue
+            prefix="${done%.done}"
+            expected=$(tr -d '[:space:]' < "$done")
+            found=$(ls -1 "${prefix}".part* 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$found" -ne "$expected" ]; then
+              echo "Skipping $prefix: have $found of $expected parts"
+              continue
+            fi
+            cat "${prefix}".part* | base64 -d | tar -xf -
+          done
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add lia.dailystyle flashe0227 factory-nov17-23 || true
